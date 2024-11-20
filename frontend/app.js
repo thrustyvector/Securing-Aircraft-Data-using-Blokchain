@@ -1,19 +1,14 @@
-// import contractdetails from '../build/contracts/AircraftMaintenance.json';
-// const contractDetails = require('../build/contracts/AircraftMaintenance.json')
-
 document.addEventListener("DOMContentLoaded", async () => {
   if (window.ethereum) {
     window.web3 = new Web3(window.ethereum);
     try {
       // Request account access if needed
       await window.ethereum.enable();
-      // Acccounts now exposed
     } catch (error) {
       console.error("User denied account access or error occurred:", error);
     }
   } else if (window.web3) {
     window.web3 = new Web3(web3.currentProvider);
-    // No need to ask for account access
   } else {
     console.error(
       "No Ethereum interface injected into browser. Install MetaMask!"
@@ -21,34 +16,41 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  // Contract ABI (Artifact)
+  const response = await fetch("../build/contracts/AircraftMaintenance.json");
+  const jsonData = await response.json();
 
-  const response = await fetch("../build/contracts/AircraftMaintenance.json"); // Update the path if necessary
-  const jsonData = await response.json(); // Parses the JSON response into an object
-
-  // Now you can access the data
-  console.log(jsonData); // Output: My Contract
-  console.log(jsonData.address); // Output: 0x1234abcd5678efgh
-  console.log(jsonData.networkId); // Output: 5777
   const contractABI = jsonData.abi;
   const contractAddress = jsonData.networks[5777].address;
-  // You can also use the data in your Web3 setup if needed
-  // const contractAddress = jsonData.address;
-  // const contractABI = ... (your ABI data)
 
   // Initialize contract instance
   const contract = new web3.eth.Contract(contractABI, contractAddress);
+
+  // Function to calculate RUL based on sensor values and weights
+  function calculateRUL(baseRUL, sensorValues) {
+    const weights = [0.2, 0.15, 0.1, 0.1, 0.25, 0.05, 0.1, 0.05]; // Weights for EGT, CDP, Oil Temperature, Oil Pressure, Vibration, Fuel Flow, N1 Speed, TIT
+
+    let weightedSum = 0;
+    for (let i = 0; i < sensorValues.length; i++) {
+      weightedSum += sensorValues[i] * weights[i];
+    }
+
+    let RUL = baseRUL - (weightedSum / 100) * 5; //maxImpact;
+    // const  = 5; // Ensure RUL doesn't drop below 5
+    // if (RUL < maxImpact) {
+    //   return maxImpact;
+    // }
+
+    return RUL;
+  }
 
   // Handle form submission
   const form = document.getElementById("maintenanceForm");
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    // Collecting form values
     const aircraftName = form.aircraftName.value;
     const engineId = form.engineId.value;
 
-    // Collecting sensor values
     const egt = form.egt.value;
     const cdp = form.cdp.value;
     const oilTemperature = form.oilTemperature.value;
@@ -58,37 +60,45 @@ document.addEventListener("DOMContentLoaded", async () => {
     const n1Speed = form.n1Speed.value;
     const tit = form.tit.value;
 
+    const response = await fetch("../engine_rul.json"); // Path to the engine_rul.json file
+    const engineRulData = await response.json();
+    const baseRUL = engineRulData[engineId];
+
+    if (!baseRUL) {
+      document.getElementById(
+        "result"
+      ).innerHTML = `<p>Error: No base RUL found for engine ID ${engineId}</p>`;
+      return;
+    }
+
+    const sensorValues = [
+      parseInt(egt),
+      parseInt(cdp),
+      parseInt(oilTemperature),
+      parseInt(oilPressure),
+      parseInt(vibration),
+      parseInt(fuelFlow),
+      parseInt(n1Speed),
+      parseInt(tit),
+    ];
+
+    const RUL = calculateRUL(baseRUL, sensorValues);
+
     try {
-      // Send transaction to add maintenance record to the smart contract
       const accounts = await web3.eth.getAccounts();
 
-      // Prepare the sensor values as an array
-      const sensorValues = [
-        egt,
-        cdp,
-        oilTemperature,
-        oilPressure,
-        vibration,
-        fuelFlow,
-        n1Speed,
-        tit,
-      ];
-
-      // Send the data to the contract
       let result = await contract.methods
-        .addMaintenanceRecord(aircraftName, engineId, sensorValues)
+        .addMaintenanceRecord(aircraftName, engineId, sensorValues, RUL)
         .send({ from: accounts[0] });
 
       console.log(
         `Transaction hash for the added block: ${result.transactionHash}`
       );
 
-      // Display success message
       document.getElementById(
         "result"
-      ).innerHTML = `<p>Successfully added maintenance record for ${aircraftName}</p>`;
+      ).innerHTML = `<p>Successfully added maintenance record for ${aircraftName} with RUL: ${RUL}</p>`;
 
-      // Clear form fields
       form.reset();
     } catch (error) {
       console.error("Error adding maintenance record:", error);
@@ -101,7 +111,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Function to fetch all maintenance records for an aircraft
   async function getAllMaintenanceRecords(aircraftId) {
     try {
-      const aircraftCount = await contract.methods.recordId().call(); // Assuming recordId increments for each maintenance record
+      const aircraftCount = await contract.methods.recordId().call();
       console.log(`Total Aircraft Count: ${aircraftCount}`);
       const records = [];
       for (let i = 1; i <= aircraftCount; i++) {
@@ -112,16 +122,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           console.log("Aircraft Name:", r.aircraftName);
           console.log("Engine ID:", r.engineId);
           console.log("Sensor Values:", r.sensorValues);
-          // Logging each sensor value for clarity
-          console.log("EGT:", r.sensorValues[0]);
-          console.log("CDP:", r.sensorValues[1]);
-          console.log("Oil Temperature:", r.sensorValues[2]);
-          console.log("Oil Pressure:", r.sensorValues[3]);
-          console.log("Vibration:", r.sensorValues[4]);
-          console.log("Fuel Flow:", r.sensorValues[5]);
-          console.log("N1 Speed:", r.sensorValues[6]);
-          console.log("TIT:", r.sensorValues[7]);
-          console.log("----------------------");
+          console.log("RUL:", r.RUL); // Log the RUL
         });
       }
       return records;
@@ -145,8 +146,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const name = r.aircraftName;
         const engineId = r.engineId;
         const sensorValues = r.sensorValues;
+        const RUL = r.RUL;
 
-        // Extract individual sensor values from the array
         const egt = sensorValues[0];
         const cdp = sensorValues[1];
         const oilTemperature = sensorValues[2];
@@ -161,6 +162,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               <br><p><strong>Maintenance Record #${count}</strong></p><br>
               <p><strong>Aircraft Name:</strong> ${name}</p><br>
               <p><strong>Engine ID:</strong> ${engineId}</p><br>
+              <p><strong>RUL:</strong> ${RUL}</p><br>
               <p><strong>EGT (°C):</strong> ${egt}</p><br>
               <p><strong>CDP (psi):</strong> ${cdp}</p><br>
               <p><strong>Oil Temperature (°C):</strong> ${oilTemperature}</p><br>
@@ -176,7 +178,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // Add event listener to the button
   const fetchRecordsButton = document.getElementById("fetch-records-button");
   fetchRecordsButton.addEventListener("click", () => {
     displayMaintenanceRecords();
