@@ -78,14 +78,54 @@
         }
 
         form {
-            max-width: 500px;
-            width: 300px;
-            margin: 0 auto;
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
+    max-width: 600px;          /* Set a maximum width */
+    width: 100%;               /* Make it responsive to container width */
+    margin: 0 auto;            /* Center the form */
+    background-color: #fff;    /* White background */
+    padding: 10px;             /* Padding around the form */
+    border-radius: 10px;       /* Rounded corners for aesthetics */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);  /* Soft shadow for depth */
+    display: flex;             /* Flexbox layout for better control */
+    flex-direction: column;    /* Stack elements vertically */
+    gap: 5px;                 /* Add space between form elements */
+}
+
+input, select, textarea {
+    width: 100%;               /* Full width of their container */
+    padding: 12px;             /* Adequate padding inside inputs */
+    margin: 5px 0;             /* Small margin for spacing */
+    border: 1px solid #ccc;    /* Border around the inputs */
+    border-radius: 6px;        /* Rounded input corners */
+    font-size: 16px;           /* Larger font for better readability */
+    box-sizing: border-box;    /* Ensure padding doesn't affect width */
+}
+
+input[type="submit"] {
+    background-color: #4CAF50; /* Green background for the submit button */
+    color: white;              /* White text */
+    border: none;              /* Remove the default border */
+    cursor: pointer;          /* Pointer cursor on hover */
+    font-size: 16px;           /* Button font size */
+    padding: 12px;             /* Button padding */
+    border-radius: 6px;        /* Rounded button corners */
+    transition: background-color 0.3s ease; /* Smooth hover transition */
+}
+
+input[type="submit"]:hover {
+    background-color: #45a049; /* Darker green on hover */
+}
+
+@media (max-width: 768px) {
+    form {
+        width: 90%;             /* Adjust form width on smaller screens */
+        padding: 15px;          /* Slightly smaller padding */
+    }
+
+    input, select, textarea {
+        font-size: 14px;        /* Slightly smaller font size */
+    }
+}
+
 
         header.sticky {
             background-color: #fff;
@@ -268,20 +308,54 @@
         <h1>Aircraft Maintenance Record</h1>
 
         <form id="maintenanceForm">
+            <!-- Input for Aircraft Name -->
             <label for="aircraftName">Aircraft Name:</label><br>
             <input type="text" id="aircraftName" name="aircraftName" required><br><br>
-
-            <label for="partsExchanged">Issue Description:</label><br>
-            <input type="text" id="partsExchanged" name="partsExchanged" required><br><br>
-            <label for="currentMaintenanceDate">Current Maintenance Date:</label><br>
-            <input type="date" id="currentMaintenanceDate" name="currentMaintenanceDate" required><br><br>
-            <label for="upcomingMaintenanceDate">Upcoming Maintenance Date:</label><br>
-            <input type="date" id="upcomingMaintenanceDate" name="upcomingMaintenanceDate" required><br><br>
-            <label for="upcomingMaintenanceDate">Upcoming Maintenance Date:</label><br>
+        
+            <!-- Input for Engine ID -->
+            <label for="engineId">Engine ID:</label><br>
+            <input type="number" id="engineId" name="engineId" required><br><br>
+        
+            <!-- Inputs for Sensor Values -->
+            <label for="sensorValues">Sensor Values:</label><br>
             
-
+            <!-- EGT (Exhaust Gas Temperature) -->
+            <label for="egt">EGT (Exhaust Gas Temperature):</label>
+            <input type="number" id="egt" name="egt" placeholder="500-800 °C" required><br>
+        
+            <!-- CDP (Compressor Discharge Pressure) -->
+            <label for="cdp">CDP (Compressor Discharge Pressure):</label>
+            <input type="number" id="cdp" name="cdp" placeholder="80-150 psi" required><br>
+        
+            <!-- Oil Temperature -->
+            <label for="oilTemperature">Oil Temperature:</label>
+            <input type="number" id="oilTemperature" name="oilTemperature" placeholder="60-100 °C" required><br>
+        
+            <!-- Oil Pressure -->
+            <label for="oilPressure">Oil Pressure:</label>
+            <input type="number" id="oilPressure" name="oilPressure" placeholder="40-80 psi" required><br>
+        
+            <!-- Vibration -->
+            <label for="vibration">Vibration:</label>
+            <input type="number" id="vibration" name="vibration" placeholder="0-5 mm/s" required><br>
+        
+            <!-- Fuel Flow -->
+            <label for="fuelFlow">Fuel Flow:</label>
+            <input type="number" id="fuelFlow" name="fuelFlow" placeholder="50-120 L/hr" required><br>
+        
+            <!-- N1 Speed -->
+            <label for="n1Speed">N1 Speed:</label>
+            <input type="number" id="n1Speed" name="n1Speed" placeholder="1000-3000 RPM" required><br>
+        
+            <!-- TIT (Turbine Inlet Temperature) -->
+            <label for="tit">TIT (Turbine Inlet Temperature):</label>
+            <input type="number" id="tit" name="tit" placeholder="400-900 °C" required><br><br>
+        
+            <!-- Submit Button -->
             <button type="submit">Add Maintenance Record</button>
         </form>
+        
+        
 
         <button id="fetch-records-button">Fetch Maintenance Records</button>
     </div>
