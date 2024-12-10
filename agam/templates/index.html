@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engine Failure Prediction</title>
+    <script>
+        async function getPrediction() {
+            const unit_id = document.getElementById('unit_id').value;
+            const RUL_MAX = document.getElementById('RUL_MAX').value;
+            const response = await fetch('/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    unit_id: unit_id,
+                    RUL_MAX: RUL_MAX
+                })
+            });
+
+            const data = await response.json();
+            document.getElementById('prediction').innerText = data.message;
+        }
+    </script>
+</head>
+<body>
+    <h1>Engine Failure Prediction</h1>
+    <div>
+        <label for="unit_id">Unit ID:</label>
+        <input type="number" id="unit_id" required>
+    </div>
+    <div>
+        <label for="RUL_MAX">Current Number of Cycles:</label>
+        <input type="number" id="RUL_MAX" required>
+    </div>
+    <button onclick="getPrediction()">Predict Failure</button>
+    <p id="prediction"></p>
+</body>
+</html>

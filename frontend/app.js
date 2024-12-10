@@ -27,6 +27,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Function to calculate RUL based on sensor values and weights
   function calculateRUL(baseRUL, sensorValues) {
+    const currBaseRUL = baseRUL.base_rul;
     const weights = [0.2, 0.15, 0.1, 0.1, 0.25, 0.05, 0.1, 0.05]; // Weights for EGT, CDP, Oil Temperature, Oil Pressure, Vibration, Fuel Flow, N1 Speed, TIT
 
     let weightedSum = 0;
@@ -34,13 +35,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       weightedSum += sensorValues[i] * weights[i];
     }
 
-    let RUL = baseRUL - (weightedSum / 100) * 5; //maxImpact;
+    let RUL = currBaseRUL - (weightedSum / 100) * 5; //maxImpact;
     // const  = 5; // Ensure RUL doesn't drop below 5
     // if (RUL < maxImpact) {
     //   return maxImpact;
     // }
 
-    return RUL;
+    return Math.round(RUL);
   }
 
   // Handle form submission
@@ -132,6 +133,35 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+// Function to send RUL to Python server
+// Function to send RUL and unit_id to the ML backend
+async function sendToMLBackend(unitId, rulMax) {
+  try {
+      const response = await fetch('http://localhost:5000/predict', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ unit_id: unitId, RUL_MAX: rulMax }),
+      });
+
+      const result = await response.json();
+
+      if (result.error) {
+          alert(`Error: ${result.error}`);
+      } else {
+          alert(result.message);
+      }
+  } catch (error) {
+      console.error('Error communicating with the ML backend:', error);
+      alert('Failed to connect to the ML backend.');
+  }
+}
+
+// Expose this function to be callable from HTML buttons
+window.sendToMLBackend = sendToMLBackend;
+
+
   // Function to display maintenance records on the web page
   async function displayMaintenanceRecords() {
     const aircraftId = 1; // Replace with the ID of the aircraft you want to display records for
@@ -159,7 +189,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         const recordElement = document.createElement("div");
         recordElement.innerHTML = `
-              <br><p><strong>Maintenance Record #${count}</strong></p><br>
+              <br style="margin-top:10px"><p><strong>Maintenance Record #${count}</strong></p><br>
               <p><strong>Aircraft Name:</strong> ${name}</p><br>
               <p><strong>Engine ID:</strong> ${engineId}</p><br>
               <p><strong>RUL:</strong> ${RUL}</p><br>
@@ -171,7 +201,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               <p><strong>Fuel Flow (L/hr):</strong> ${fuelFlow}</p><br>
               <p><strong>N1 Speed (RPM):</strong> ${n1Speed}</p><br>
               <p><strong>TIT (°C):</strong> ${tit}</p><br>
-              <hr>
+              <button onclick="sendToMLBackend(${engineId}, ${RUL})">Calculate Fitness for Aircraft ID: ${engineId}</button>
           `;
         recordsContainer.appendChild(recordElement);
       });
