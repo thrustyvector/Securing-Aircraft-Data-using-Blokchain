@@ -1,3 +1,4 @@
+
 document.addEventListener("DOMContentLoaded", async () => {
   if (window.ethereum) {
     window.web3 = new Web3(window.ethereum);
@@ -44,14 +45,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     return Math.round(RUL);
   }
 
+  
+
   // Handle form submission
   const form = document.getElementById("maintenanceForm");
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-
+  
     const aircraftName = form.aircraftName.value;
     const engineId = form.engineId.value;
-
+  
     const egt = form.egt.value;
     const cdp = form.cdp.value;
     const oilTemperature = form.oilTemperature.value;
@@ -60,18 +63,18 @@ document.addEventListener("DOMContentLoaded", async () => {
     const fuelFlow = form.fuelFlow.value;
     const n1Speed = form.n1Speed.value;
     const tit = form.tit.value;
-
+  
     const response = await fetch("../engine_rul.json"); // Path to the engine_rul.json file
     const engineRulData = await response.json();
     const baseRUL = engineRulData[engineId];
-
+  
     if (!baseRUL) {
       document.getElementById(
         "result"
       ).innerHTML = `<p>Error: No base RUL found for engine ID ${engineId}</p>`;
       return;
     }
-
+  
     const sensorValues = [
       parseInt(egt),
       parseInt(cdp),
@@ -82,24 +85,52 @@ document.addEventListener("DOMContentLoaded", async () => {
       parseInt(n1Speed),
       parseInt(tit),
     ];
-
+  
     const RUL = calculateRUL(baseRUL, sensorValues);
-
+    const predicted = await sendToMLBackend(engineId, RUL);
+  
+    // Fetch the engine status data from localStorage (if available)
+    let engineStatusData = JSON.parse(localStorage.getItem("engineStatus")) || [];
+  
+    // Ensure we have the correct structure for engine status
+    if (!Array.isArray(engineStatusData)) {
+      engineStatusData = [];
+    }
+  
+    // Find the engine entry and update the isFailed field
+    const engine = engineStatusData.find((entry) => entry.engineId == engineId);
+  
+    if (!engine) {
+      // If the engine does not exist in the status, add a new entry
+      engineStatusData.push({
+        engineId: engineId,
+        isFailed: !predicted.includes("not"), // Set failure based on prediction
+      });
+    } else {
+      // If the engine already exists, update the status
+      engine.isFailed = !predicted.includes("not");
+    }
+  
+    // Save the updated engine status in localStorage
+    localStorage.setItem("engineStatus", JSON.stringify(engineStatusData));
+  
+    console.log(`Updated engine ${engineId}:`, engine);
+  
     try {
       const accounts = await web3.eth.getAccounts();
-
+  
       let result = await contract.methods
         .addMaintenanceRecord(aircraftName, engineId, sensorValues, RUL)
         .send({ from: accounts[0] });
-
+  
       console.log(
         `Transaction hash for the added block: ${result.transactionHash}`
       );
-
+  
       document.getElementById(
         "result"
       ).innerHTML = `<p>Successfully added maintenance record for ${aircraftName} with RUL: ${RUL}</p>`;
-
+  
       form.reset();
     } catch (error) {
       console.error("Error adding maintenance record:", error);
@@ -108,6 +139,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       ).innerHTML = `<p>Error adding maintenance record: ${error.message}</p>`;
     }
   });
+  
+  
 
   // Function to fetch all maintenance records for an aircraft
   async function getAllMaintenanceRecords(aircraftId) {
@@ -148,18 +181,40 @@ async function sendToMLBackend(unitId, rulMax) {
       const result = await response.json();
 
       if (result.error) {
-          alert(`Error: ${result.error}`);
+          return result.message
       } else {
-          alert(result.message);
+        return result.message
       }
   } catch (error) {
       console.error('Error communicating with the ML backend:', error);
       alert('Failed to connect to the ML backend.');
   }
 }
+async function sendToMLBackendAlert(unitId, rulMax) {
+  try {
+      const response = await fetch('http://localhost:5000/predict', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ unit_id: unitId, RUL_MAX: rulMax }),
+      });
 
+      const result = await response.json();
+
+      if (result.error) {
+        alert( result.message)
+      } else {
+        alert( result.message)
+
+      }
+  } catch (error) {
+      console.error('Error communicating with the ML backend:', error);
+      alert('Failed to connect to the ML backend.');
+  }
+}
 // Expose this function to be callable from HTML buttons
-window.sendToMLBackend = sendToMLBackend;
+window.sendToMLBackendAlert = sendToMLBackendAlert;
 
 
   // Function to display maintenance records on the web page
@@ -201,7 +256,7 @@ window.sendToMLBackend = sendToMLBackend;
               <p><strong>Fuel Flow (L/hr):</strong> ${fuelFlow}</p><br>
               <p><strong>N1 Speed (RPM):</strong> ${n1Speed}</p><br>
               <p><strong>TIT (°C):</strong> ${tit}</p><br>
-              <button onclick="sendToMLBackend(${engineId}, ${RUL})">Calculate Fitness for Aircraft ID: ${engineId}</button>
+              <button onclick="sendToMLBackendAlert(${engineId}, ${RUL})">Calculate Fitness for Aircraft ID: ${engineId}</button>
           `;
         recordsContainer.appendChild(recordElement);
       });
